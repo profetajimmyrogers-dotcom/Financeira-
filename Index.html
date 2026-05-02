@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberFinance | Hacker Edition</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* =============================================
+   1. VARIÁVEIS (DESIGN SYSTEM + MAPEAMENTO)
+   ============================================= */
+:root {
+    /* Cores Oficiais do Design System */
+    --neon-cyan:  #00f5ff;
+    --neon-pink:  #ff00aa;
+    --neon-yellow:#ffee00;
+    --neon-green: #00ff88;
+    --dark-bg:    #020810;
+    --mid-bg:     #040d1a;
+    --card-bg:    #050f20;
+    --text-dim:   #4a7a9b;
+    --text-mid:   #7ab8d8;
+    --grid-color: rgba(0,245,255,0.04);
+    
+    /* Mapeamento: As variáveis usadas pelo JS agora puxam as cores do Design System */
+    --hacker-cyan: var(--neon-cyan);
+    --hacker-green: var(--neon-green);
+    --hacker-red: var(--neon-pink);
+    --hacker-amber: var(--neon-yellow);
+    --hacker-purple: #b026ff;
+    
+    --border-tech: rgba(0,245,255,0.15);
+    --text-bright: #e0f7fa;
+}
+
+/* =============================================
+   2. RESET E FUNDO (AMBIENTE)
+   ============================================= */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    background: var(--dark-bg);
+    color: var(--neon-cyan);
+    font-family: 'Share Tech Mono', monospace;
+    padding: 40px 20px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* GRID DE FUNDO */
+body::before {
+    content:''; position:fixed; inset:0;
+    background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size:32px 32px;
+    pointer-events:none; z-index:0;
+}
+
+/* SCANLINES (LINHAS DE TV) */
+body::after {
+    content:''; position:fixed; inset:0;
+    background:repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px
+    );
+    pointer-events:none; z-index:999;
+    animation:scanline 10s linear infinite;
+}
+
+@keyframes scanline { 0%{background-position:0 0} 100%{background-position:0 100%} }
+
+.container { max-width: 900px; margin: auto; position: relative; z-index: 10; }
+
+/* =============================================
+   3. TIPOGRAFIA E ANIMAÇÕES
+   ============================================= */
+h1 { 
+    font-family: 'Orbitron', sans-serif; font-weight: 900; letter-spacing: 0.2em; 
+    text-transform: uppercase; margin-bottom: 20px; text-align: center;
+    color: var(--neon-cyan);
+    border-bottom: 1px solid var(--grid-color); padding-bottom: 10px;
+    animation: logoFlicker 5s infinite;
+}
+@keyframes logoFlicker { 0%,94%,100%{opacity:1} 95%{opacity:.6} 97%{opacity:.3} 99%{opacity:1} }
+
+/* =============================================
+   4. COMPONENTES: CARDS E CONTAINERS
+   ============================================= */
+.card, .dash-item, .modal-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-tech);
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    transition: 0.3s;
+}
+.card:hover, .dash-item:hover { border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0,245,255,0.1); }
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.dash-item { text-align: center; font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 1.2rem; }
+.dash-item small { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--text-dim); }
+
+/* =============================================
+   5. COMPONENTES: BOTÕES
+   ============================================= */
+button {
+    background: transparent;
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 10px 15px;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    text-transform: uppercase;
+}
+button:hover { background: rgba(0,245,255,0.1); box-shadow: 0 0 15px rgba(0,245,255,0.2); }
+
+.btn-main {
+    background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(255,0,170,0.1));
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 12px 24px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    width: 100%; margin-top: 15px;
+}
+.btn-main:hover { box-shadow: 0 0 20px rgba(0,245,255,0.3); background: rgba(0,245,255,0.15); }
+
+.btn-filter { border-color: var(--border-tech); color: var(--text-dim); }
+.btn-filter.active { border-color: var(--neon-yellow); color: var(--neon-yellow); box-shadow: 0 0 10px rgba(255,238,0,0.15); }
+
+.btn-close { border-color: var(--neon-pink); color: var(--neon-pink); }
+.btn-close:hover { background: rgba(255,0,170,0.1); box-shadow: 0 0 15px rgba(255,0,170,0.2); }
+
+/* =============================================
+   6. COMPONENTES: FORMULÁRIOS
+   ============================================= */
+input, select {
+    width: 100%;
+    background: rgba(0,245,255,0.05);
+    border: 1px solid rgba(0,245,255,0.2);
+    color: var(--neon-cyan);
+    padding: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    outline: none;
+    margin-bottom: 10px;
+    transition: 0.3s;
+}
+input:focus, select:focus { border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0,245,255,0.15); }
+
+/* =============================================
+   7. COMPONENTES: TABELAS E BADGES
+   ============================================= */
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+th { color: var(--text-dim); text-align: center; border-bottom: 1px solid var(--grid-color); padding: 10px; font-family: 'Orbitron', sans-serif; font-size: 0.8rem; }
+td { padding: 10px; text-align: center; border-bottom: 1px solid rgba(0,245,255,0.05); }
+
+.atrasado { color: var(--neon-pink); background: rgba(255,0,170,0.05); }
+.pago { color: var(--neon-green); opacity: 0.7; }
+
+/* Elementos do Dashboard e Status */
+.card-hoje { border-left: 4px solid var(--neon-yellow); box-shadow: inset 5px 0 15px rgba(255,238,0,0.05); }
+.badge-hoje { 
+    display: inline-block; padding: 4px 12px; font-family: 'Orbitron', sans-serif; 
+    font-size: 0.7rem; font-weight: 700; border: 1px solid var(--neon-yellow); 
+    color: var(--neon-yellow); text-transform: uppercase; background: transparent; 
+}
+
+/* =============================================
+   8. MODAL E EXTRATO VISUAL (CYBERPUNK)
+   ============================================= */
+.modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(2, 8, 16, 0.95); z-index: 1000; overflow-y: auto; padding: 20px;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-tech); padding-bottom: 15px; margin-bottom: 20px; }
+.modal-title { color: var(--neon-cyan); font-family: 'Orbitron', sans-serif; font-size: 1.2rem; }
+
+.lista-clientes { display: flex; flex-direction: column; gap: 10px; }
+.cliente-select-btn {
+    background: rgba(0,245,255,0.02); border: 1px solid var(--border-tech);
+    color: var(--text-mid); padding: 15px; text-align: left;
+    display: flex; justify-content: space-between; align-items: center; width: 100%;
+}
+.cliente-select-btn:hover { border-color: var(--neon-cyan); background: rgba(0,245,255,0.1); }
+.cliente-select-btn .nome { color: var(--neon-cyan); font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 600; }
+.cliente-select-btn .info { color: var(--text-dim); font-size: 12px; margin-top: 5px;}
+
+/* Estilização da área que vira a imagem do extrato */
+.extrato-capture {
+    background: var(--mid-bg); color: var(--text-bright); padding: 20px;
+    border: 1px solid var(--border-tech); font-family: 'Share Tech Mono', monospace;
+}
+.extrato-header { text-align: center; border-bottom: 1px solid var(--neon-cyan); padding-bottom: 15px; margin-bottom: 20px; }
+.extrato-header h2 { font-family: 'Orbitron', sans-serif; color: var(--neon-cyan); margin: 0; font-size: 18px; }
+
+.extrato-info {
+    background: rgba(0,245,255,0.02); padding: 15px; margin-bottom: 15px;
+    border-left: 4px solid var(--neon-cyan); font-size: 14px;
+}
+.extrato-table th { background: rgba(0,245,255,0.05); color: var(--neon-cyan); font-weight: bold; }
+.extrato-table tr:nth-child(even) { background: rgba(0,245,255,0.02); }
+
+.extrato-footer { margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--border-tech); text-align: center; font-size: 10px; color: var(--text-dim); }
+
+.status-pago { color: var(--neon-green); font-weight: bold; text-shadow: 0 0 5px rgba(0,255,136,0.3); }
+.status-pendente { color: var(--neon-yellow); font-weight: bold; }
+.status-atrasado { color: var(--neon-pink); font-weight: bold; text-shadow: 0 0 5px rgba(255,0,170,0.3); }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>> SYSTEM_FINANCE_v2.0</h1>
+
+    <div class="dashboard-grid">
+        <div class="dash-item"><small>RECEBIDO</small><div id="dash-recebido" style="color:var(--neon-green); margin-top:5px;">R$ 0</div></div>
+        <div class="dash-item"><small>A RECEBER</small><div id="dash-receber" style="color:var(--neon-cyan); margin-top:5px;">R$ 0</div></div>
+        <div class="dash-item"><small>PENDENCIAS_HOJE</small><div id="dash-hoje" style="color:var(--neon-yellow); margin-top:5px;">0</div></div>
+    </div>
+
+    <div class="card" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button onclick="abrirListaClientes('resumo')" class="btn-extrato" style="border-color: var(--hacker-purple); color: var(--hacker-purple);">📄 EXTRATO_RESUMO</button>
+        <button onclick="abrirListaClientes('completo')" class="btn-extrato" style="border-color: var(--neon-green); color: var(--neon-green);">📑 EXTRATO_COMPLETO</button>
+    </div>
+
+    <details class="card">
+        <summary style="color: var(--neon-cyan); cursor: pointer; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1rem; list-style: none;">[+] EXECUTAR_NOVO_CONTRATO</summary>
+        <div style="padding-top:20px;">
+            <input id="cliente" placeholder="NOME_CLIENTE">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input id="valor" type="number" placeholder="VALOR_TOTAL">
+                <input id="data" type="date">
+                <input id="parcelas" type="number" placeholder="QTD_PARCELAS">
+                <select id="tipo">
+                    <option value="diario">DIÁRIO</option>
+                    <option value="semanal">SEMANAL</option>
+                </select>
+            </div>
+            <label style="font-size: 12px; color: var(--text-dim); margin-top: 10px; display: block;"><input type="checkbox" id="excetoDomingo" style="width: auto; margin-right: 5px;"> OMITIR_DOMINGOS</label>
+            <button onclick="salvarCliente()" class="btn-main">GERAR_REGISTRO</button>
+        </div>
+    </details>
+
+    <div class="filter-bar" style="display:flex; justify-content:center; gap:10px; margin: 30px 0;">
+        <button class="btn-filter active" id="btn-todos" onclick="setFiltro('todos')">ROOT_ALL</button>
+        <button class="btn-filter" id="btn-devendo" onclick="setFiltro('devendo')">DEBTORS_LIST</button>
+        <button class="btn-filter" id="btn-hoje" onclick="setFiltro('hoje')">TODAY_TASK</button>
+    </div>
+
+    <div id="clientes"></div>
+</div>
+
+<div id="modal-extrato" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title" id="modal-titulo">> EXTRATO_FINANCEIRO</span>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="capturarExtrato()" class="btn-extrato" style="border-color: var(--neon-cyan); color: var(--neon-cyan);">📷 EXTRATO</button>
+                <button onclick="fecharModal()" class="btn-close">✕ FECHAR</button>
+            </div>
+        </div>
+        <div id="capture-area"></div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+/* ========================================================================
+O CÓDIGO JAVASCRIPT PERMANECE INTACTO, GARANTINDO 100% DA FUNCIONALIDADE.
+AS VARIÁVEIS CSS FORAM ADAPTADAS PARA RESPONDEREM AO NOVO DESIGN SYSTEM.
+======================================================================== 
+*/
+let banco = JSON.parse(localStorage.getItem("clientes")) || [];
+let filtroAtual = 'todos';
+
+function salvarBanco() { localStorage.setItem("clientes", JSON.stringify(banco)); }
+
+function criarData(dataStr) {
+    let p = dataStr.split("-");
+    return new Date(p[0], p[1] - 1, p[2], 12, 0, 0);
+}
+
+function gerarParcelas(cliente) {
+    let data = criarData(cliente.data);
+    let valorParcela = cliente.valor / cliente.parcelas;
+    let lista = [];
+    for (let i = 1; i <= cliente.parcelas; i++) {
+        if (cliente.tipo == "diario" && cliente.excetoDomingo) {
+            while (data.getDay() == 0) data.setDate(data.getDate() + 1);
+        }
+        lista.push({ numero: i, data: new Date(data), valor: valorParcela, pago: false });
+        cliente.tipo == "diario" ? data.setDate(data.getDate() + 1) : data.setDate(data.getDate() + 7);
+    }
+    return lista;
+}
+
+function salvarCliente() {
+    let c = {
+        id: Date.now(),
+        nome: document.getElementById("cliente").value,
+        valor: parseFloat(document.getElementById("valor").value),
+        data: document.getElementById("data").value,
+        parcelas: parseInt(document.getElementById("parcelas").value),
+        tipo: document.getElementById("tipo").value,
+        excetoDomingo: document.getElementById("excetoDomingo").checked
+    };
+    if(!c.nome || isNaN(c.valor)) return alert("ERRO: DADOS_INVALIDOS");
+    c.lista = gerarParcelas(c);
+    banco.push(c);
+    salvarBanco();
+    render();
+}
+
+function toggleTabela(id) {
+    let el = document.getElementById("tab-" + id);
+    el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+}
+
+function setFiltro(tipo) {
+    filtroAtual = tipo;
+    document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('btn-' + tipo).classList.add('active');
+    render();
+}
+
+function irParaCliente(id) {
+    setFiltro('todos');
+    setTimeout(() => {
+        let card = document.getElementById("card-" + id);
+        toggleTabela(id);
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.borderColor = "var(--hacker-amber)";
+    }, 100);
+}
+
+function marcarPago(c, p) { banco[c].lista[p].pago = true; salvarBanco(); render(); }
+function estornar(c, p) { banco[c].lista[p].pago = false; salvarBanco(); render(); }
+
+// --- NOVAS FUNÇÕES PARA EDITAR PARCELAS (FERIADOS) ---
+function recalcularContrato(cIdx) {
+    let cliente = banco[cIdx];
+    cliente.parcelas = cliente.lista.length;
+    cliente.valor = cliente.lista.reduce((soma, p) => soma + p.valor, 0);
+    cliente.lista.forEach((p, index) => {
+        p.numero = index + 1;
+    });
+}
+
+function removerParcela(cIdx, pIdx) {
+    if(confirm("Deseja realmente REMOVER esta parcela (ex: Feriado)? O valor não será cobrado hoje.")) {
+        banco[cIdx].lista.splice(pIdx, 1);
+        recalcularContrato(cIdx);
+        salvarBanco();
+        render();
+    }
+}
+
+function adicionarParcelaFim(cIdx) {
+    let cliente = banco[cIdx];
+    if(cliente.lista.length === 0) {
+        alert("ERRO: Nenhuma parcela base encontrada.");
+        return;
+    }
+    let ultimaParcela = cliente.lista[cliente.lista.length - 1];
+    let novaData = new Date(ultimaParcela.data);
+
+    if(cliente.tipo === "diario") {
+        novaData.setDate(novaData.getDate() + 1);
+        if(cliente.excetoDomingo && novaData.getDay() === 0) {
+            novaData.setDate(novaData.getDate() + 1);
+        }
+    } else {
+        novaData.setDate(novaData.getDate() + 7);
+    }
+
+    let novaParcela = {
+        numero: cliente.lista.length + 1,
+        data: novaData,
+        valor: ultimaParcela.valor,
+        pago: false
+    };
+
+    cliente.lista.push(novaParcela);
+    recalcularContrato(cIdx);
+    salvarBanco();
+    render();
+}
+
+// === FUNÇÕES DE EXTRATO ===
+function abrirListaClientes(tipo) {
+    if(banco.length === 0) {
+        alert("NENHUM_CLIENTE_CADASTRADO");
+        return;
+    }
+    
+    let html = `
+        <div style="margin-bottom: 20px;">
+            <h3 style="color: var(--hacker-cyan); margin: 0 0 15px 0; text-align: center; font-family: 'Orbitron';">
+                SELECIONE O CLIENTE PARA ${tipo === 'resumo' ? 'EXTRATO RESUMO' : 'EXTRATO COMPLETO'}
+            </h3>
+            <div class="lista-clientes">
+    `;
+    
+    banco.forEach((cliente, idx) => {
+        let pagas = 0;
+        let pendentes = 0;
+        
+        cliente.lista.forEach(p => {
+            if(p.pago) pagas++;
+            else pendentes++;
+        });
+        
+        html += `
+            <button class="cliente-select-btn" onclick="mostrarExtratoCliente(${idx}, '${tipo}')">
+                <div>
+                    <div class="nome">👤 ${cliente.nome.toUpperCase()}</div>
+                    <div class="info">Parcelas: ${cliente.parcelas} | Total: R$ ${cliente.valor.toFixed(2)} | Pagas: ${pagas} | Pendentes: ${pendentes}</div>
+                </div>
+                <span style="color: var(--hacker-cyan); font-size: 24px;">→</span>
+            </button>
+        `;
+    });
+    
+    html += `</div></div>`;
+    
+    document.getElementById('capture-area').innerHTML = html;
+    document.getElementById('modal-titulo').textContent = `> SELECIONAR_CLIENTE`;
+    document.getElementById('modal-extrato').style.display = 'block';
+}
+
+function mostrarExtratoCliente(cIdx, tipo) {
+    const cliente = banco[cIdx];
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    
+    let totalRecebido = 0;
+    let totalAReceber = 0;
+    let totalAtrasado = 0;
+    let pagas = 0;
+    let pendentes = 0;
+    
+    cliente.lista.forEach(p => {
+        let dataP = new Date(p.data);
+        dataP.setHours(0,0,0,0);
+        if(p.pago) {
+            totalRecebido += p.valor;
+            pagas++;
+        } else {
+            totalAReceber += p.valor;
+            pendentes++;
+            if(dataP < hoje) totalAtrasado += p.valor;
+        }
+    });
+    
+    let html = `
+        <button onclick="abrirListaClientes('${tipo}')" class="btn-filter" style="margin-bottom: 15px; width: 100%;">
+            ← VOLTAR À LISTA
+        </button>
+    `;
+    
+    if(tipo === 'resumo') {
+        html += `
+            <div class="extrato-capture">
+                <div class="extrato-header">
+                    <h2>CYBERFINANCE - EXTRATO RESUMO</h2>
+                    <p style="margin: 5px 0; font-size: 12px; color: var(--text-dim);">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                </div>
+                
+                <div class="extrato-info">
+                    <strong style="font-size: 16px; color: var(--neon-cyan);">CLIENTE: ${cliente.nome.toUpperCase()}</strong><br>
+                    <br>
+                    <strong>TIPO:</strong> ${cliente.tipo.toUpperCase()} | 
+                    <strong>PARCELAS:</strong> ${cliente.parcelas} | 
+                    <strong>VALOR TOTAL:</strong> R$ ${cliente.valor.toFixed(2)}<br>
+                    <strong>PAGAS:</strong> ${pagas} | 
+                    <strong>PENDENTES:</strong> ${pendentes}
+                </div>
+                
+                <div class="extrato-info" style="border-left-color: var(--neon-green);">
+                    <strong>RECEBIDO:</strong> R$ ${totalRecebido.toFixed(2)} | 
+                    <strong>A RECEBER:</strong> R$ ${totalAReceber.toFixed(2)} | 
+                    <strong style="color: var(--neon-pink);">EM ATRASO:</strong> R$ ${totalAtrasado.toFixed(2)}
+                </div>
+                
+                <table class="extrato-table">
+                    <thead>
+                        <tr>
+                            <th>PARCELA</th>
+                            <th>DATA</th>
+                            <th>VALOR</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        cliente.lista.forEach(p => {
+            let dataP = new Date(p.data);
+            dataP.setHours(0,0,0,0);
+            
+            let statusClass = p.pago ? 'status-pago' : (dataP < hoje ? 'status-atrasado' : 'status-pendente');
+            let statusText = p.pago ? 'PAGO' : (dataP < hoje ? 'ATRASADO' : 'PENDENTE');
+            
+            html += `<tr>
+                <td><strong>${p.numero}</strong>/${cliente.parcelas}</td>
+                <td>${new Date(p.data).toLocaleDateString('pt-BR')}</td>
+                <td>R$ ${p.valor.toFixed(2)}</td>
+                <td class="${statusClass}">${statusText}</td>
+            </tr>`;
+        });
+        
+        html += `</tbody></table>
+            <div class="extrato-footer">
+                <p>CyberFinance System v2.0 | Documento gerado automaticamente</p>
+            </div>
+        </div>`;
+        
+    } else {
+        html += `
+            <div class="extrato-capture">
+                <div class="extrato-header">
+                    <h2>CYBERFINANCE - EXTRATO COMPLETO</h2>
+                    <p style="margin: 5px 0; font-size: 12px; color: var(--text-dim);">Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+                </div>
+                
+                <div style="background: rgba(0,245,255,0.05); color: var(--neon-cyan); padding: 15px; margin-bottom: 15px; text-align: center; border: 1px solid var(--border-tech);">
+                    <h3 style="margin: 0; font-size: 18px; font-family: 'Rajdhani', sans-serif;">CLIENTE: ${cliente.nome.toUpperCase()}</h3>
+                </div>
+                
+                <div class="extrato-info">
+                    <strong>DADOS DO CONTRATO:</strong><br><br>
+                    • Tipo: ${cliente.tipo.toUpperCase()}<br>
+                    • Data Início: ${new Date(cliente.data).toLocaleDateString('pt-BR')}<br>
+                    • Quantidade de Parcelas: ${cliente.parcelas}<br>
+                    • Valor Total: R$ ${cliente.valor.toFixed(2)}<br>
+                    • Valor por Parcela: R$ ${(cliente.valor / cliente.parcelas).toFixed(2)}
+                </div>
+                
+                <div class="extrato-info" style="border-left-color: var(--neon-green);">
+                    <strong>SITUAÇÃO ATUAL:</strong><br><br>
+                    • Parcelas Pagas: ${pagas} de ${cliente.parcelas}<br>
+                    • Parcelas Pendentes: ${pendentes}<br>
+                    • Total Recebido: R$ ${totalRecebido.toFixed(2)}<br>
+                    • Total a Receber: R$ ${totalAReceber.toFixed(2)}<br>
+                    • Valor em Atraso: R$ ${totalAtrasado.toFixed(2)}
+                </div>
+                
+                <h4 style="margin: 25px 0 10px 0; color: var(--neon-cyan); border-bottom: 1px solid var(--border-tech); padding-bottom: 5px; font-family: 'Orbitron', sans-serif;">
+                    DETALHAMENTO DAS PARCELAS
+                </h4>
+                
+                <table class="extrato-table">
+                    <thead>
+                        <tr>
+                            <th>PARCELA</th>
+                            <th>DATA VENCIMENTO</th>
+                            <th>VALOR</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        cliente.lista.forEach(p => {
+            let dataP = new Date(p.data);
+            dataP.setHours(0,0,0,0);
+            
+            let statusClass = p.pago ? 'status-pago' : (dataP < hoje ? 'status-atrasado' : 'status-pendente');
+            let statusText = p.pago ? 'PAGO' : (dataP < hoje ? 'ATRASADO' : 'PENDENTE');
+            
+            html += `<tr>
+                <td><strong>${p.numero}</strong>/${cliente.parcelas}</td>
+                <td>${new Date(p.data).toLocaleDateString('pt-BR')}</td>
+                <td>R$ ${p.valor.toFixed(2)}</td>
+                <td class="${statusClass}">${statusText}</td>
+            </tr>`;
+        });
+        
+        html += `</tbody></table>
+            <div class="extrato-footer">
+                <p>CyberFinance System v2.0 | Documento gerado automaticamente</p>
+            </div>
+        </div>`;
+    }
+    
+    document.getElementById('capture-area').innerHTML = html;
+    document.getElementById('modal-titulo').textContent = `> ${tipo === 'resumo' ? 'EXTRATO_RESUMO' : 'EXTRATO_COMPLETO'}`;
+}
+
+function fecharModal() {
+    document.getElementById('modal-extrato').style.display = 'none';
+}
+
+async function capturarExtrato() {
+    const element = document.getElementById('capture-area');
+    const titulo = document.getElementById('modal-titulo').textContent.replace('> ', '').replace(/_/g, ' ');
+    const dataAtual = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    
+    try {
+        const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#020810' // Fundo adaptado para Cyberpunk no download
+        });
+        
+        const link = document.createElement('a');
+        link.download = `Extrato_${titulo}_${dataAtual}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+    } catch (error) {
+        console.error('Erro ao capturar:', error);
+        alert('ERRO_AO_CAPTURAR_EXTRATO');
+    }
+}
+
+// Fecha modal ao clicar fora
+document.getElementById('modal-extrato').addEventListener('click', function(e) {
+    if(e.target === this) fecharModal();
+});
+
+function render() {
+    let area = document.getElementById("clientes");
+    area.innerHTML = "";
+    let hoje = new Date(); hoje.setHours(0,0,0,0);
+    let totalR = 0, totalA = 0, contaHoje = 0;
+
+    banco.forEach((cliente, cIdx) => {
+        let temAtraso = false;
+        let pAtiva = null;
+        let pIdxAtiva = -1;
+
+        cliente.lista.forEach((p, pIdx) => {
+            let dataP = new Date(p.data); dataP.setHours(0,0,0,0);
+            if(p.pago) { totalR += p.valor; } 
+            else {
+                totalA += p.valor;
+                if(dataP < hoje) temAtraso = true;
+                if(dataP.getTime() === hoje.getTime()) { pAtiva = p; pIdxAtiva = pIdx; contaHoje++; }
+            }
+        });
+
+        if (filtroAtual === 'hoje') {
+            if (pAtiva) {
+                area.innerHTML += `
+                <div class="card card-hoje">
+                    <div style="margin-bottom: 10px;">
+                        <span class="badge-hoje">VENCE_HOJE</span>
+                        <span style="margin-left:10px; font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; color: var(--neon-cyan);">${cliente.nome.toUpperCase()}</span><br>
+                        <span style="color:var(--text-mid)">VALOR: R$ ${pAtiva.valor.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="marcarPago(${cIdx}, ${pIdxAtiva})" style="border-color:var(--hacker-green); color:var(--hacker-green); flex-grow: 1;">BAIXA</button>
+                        <button onclick="irParaCliente(${cliente.id})" style="flex-grow: 1;">INFO</button>
+                    </div>
+                </div>`;
+            }
+        }
+        else if (filtroAtual === 'devendo') {
+            if (temAtraso) {
+                area.innerHTML += `
+                <div class="card" style="display:flex; justify-content:space-between; align-items:center; border-left: 4px solid var(--hacker-red);">
+                    <span style="color:var(--hacker-red); font-weight: bold; font-family: 'Rajdhani', sans-serif; font-size: 1.1rem;">! PENDENTE: ${cliente.nome.toUpperCase()}</span>
+                    <button onclick="irParaCliente(${cliente.id})" style="border-color:var(--hacker-red); color:var(--hacker-red);">ACESSAR</button>
+                </div>`;
+            }
+        }
+        else {
+            area.innerHTML += `
+            <div class="card" id="card-${cliente.id}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div onclick="toggleTabela(${cliente.id})" style="cursor:pointer; flex-grow:1;">
+                        <span style="color:var(--hacker-cyan); font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 600;">[+] ${cliente.nome.toUpperCase()}</span>
+                        <div style="font-size:12px; color:var(--text-dim); margin-top: 5px;">PARCELAS: ${cliente.parcelas} | TOTAL: R$ ${cliente.valor.toFixed(2)}</div>
+                    </div>
+                    <button onclick="confirm('APAGAR REGISTRO?') && (banco.splice(${cIdx},1), salvarBanco(), render())" style="color:var(--hacker-red); border:none; font-size:24px; padding: 0 10px;">&times;</button>
+                </div>
+                <div id="tab-${cliente.id}" style="display:none; margin-top:20px; border-top: 1px solid var(--border-tech); padding-top:15px;">
+                    <table>
+                        <tr><th>DATA</th><th>VALOR</th><th>AÇÕES</th></tr>
+                        ${cliente.lista.map((p, pIdx) => {
+                            let dataP = new Date(p.data); dataP.setHours(0,0,0,0);
+                            let cls = p.pago ? "pago" : (dataP < hoje ? "atrasado" : "");
+                            return `
+                            <tr class="${cls}">
+                                <td>${dataP.toLocaleDateString('pt-BR')}</td>
+                                <td>R$ ${p.valor.toFixed(2)}</td>
+                                <td style="display:flex; gap:5px; justify-content:center;">
+                                    ${p.pago ? 
+                                        `<button onclick="estornar(${cIdx}, ${pIdx})" style="border-color:var(--hacker-red); color:var(--hacker-red);">ESTORNAR</button>` : 
+                                        `<button onclick="marcarPago(${cIdx}, ${pIdx})" style="border-color:var(--hacker-green); color:var(--hacker-green);">PAGAR</button>
+                                         <button onclick="removerParcela(${cIdx}, ${pIdx})" style="border-color:var(--hacker-amber); color:var(--hacker-amber);" title="Remover Parcela (Feriado)">✕</button>`
+                                    }
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </table>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button onclick="adicionarParcelaFim(${cIdx})" style="border-color:var(--hacker-cyan); color:var(--hacker-cyan); width:100%;">+ ADD PARCELA NO FIM</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+    });
+
+    document.getElementById("dash-recebido").innerText = `R$ ${totalR.toFixed(2)}`;
+    document.getElementById("dash-receber").innerText = `R$ ${totalA.toFixed(2)}`;
+    document.getElementById("dash-hoje").innerText = contaHoje;
+}
+render();
+</script>
+</body>
+</html>
