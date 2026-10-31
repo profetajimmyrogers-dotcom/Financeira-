@@ -745,8 +745,9 @@
     var gerado = new Date().toLocaleString("pt-BR");
     var porParcela = c.parcelas > 0 ? money(c.valor / c.parcelas) : "—";
     var titulo = tipo === "resumo" ? "Extrato resumido" : "Extrato completo";
-    var h = '<div class="lx"><div class="lx-head"><div class="lx-mark" aria-hidden="true">A</div><div>' +
-      '<p class="lx-kicker">Aureum</p><h3 class="lx-title">' + titulo + '</h3><p class="lx-sub">Gerado em ' + gerado + "</p></div></div>";
+    var h = '<div class="lx"><div class="lx-head" style="flex-wrap:wrap"><div class="lx-mark" aria-hidden="true">A</div><div style="flex:1 1 auto;min-width:0">' +
+      '<p class="lx-kicker">Aureum</p><h3 class="lx-title" style="white-space:nowrap">' + titulo + '</h3></div>' +
+      '<p class="lx-sub" style="flex:none;margin:0 0 0 auto;text-align:right;white-space:nowrap;align-self:flex-end">Gerado em ' + gerado + "</p></div>";
     if (tipo === "resumo") {
       h += '<p class="lx-name">' + esc(c.nome) + "</p>" +
         '<div class="lx-block"><strong>Tipo:</strong> ' + labelTipo(c.tipo) + " · <strong>Parcelas:</strong> " + c.parcelas +
