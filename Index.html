@@ -179,6 +179,57 @@
       lista: c.lista.concat([{ numero: c.lista.length + 1, data: nova.toISOString(), valor: ultima.valor, pago: false }])
     }));
   }
+  function r2(n) { return Math.round(n * 100) / 100; }
+  function parseValor(txt) {
+    var t = String(txt || "").replace(/R\$/gi, "").replace(/\s/g, "");
+    if (!t) return NaN;
+    if (t.indexOf(",") !== -1) t = t.replace(/\./g, "").replace(",", ".");
+    return /^\d+(\.\d+)?$/.test(t) ? parseFloat(t) : NaN;
+  }
+  // Pagamento parcial: baixa a parcela com o valor recebido e joga o resto para a próxima da fila.
+  function pagarParcial(c, pIdx, recebido) {
+    var lista = c.lista.map(function (p) { return Object.assign({}, p); });
+    var orig = lista[pIdx];
+    var resto = r2(orig.valor - recebido);
+    var destino = -1;
+    for (var i = pIdx + 1; i < lista.length; i++) { if (!lista[i].pago) { destino = i; break; } }
+    orig.pago = true;
+    orig.valor = r2(recebido);
+    orig.parcial = { original: r2(orig.valor + resto), resto: resto };
+    if (destino === -1) {
+      var tmp = adicionarParcelaFim(Object.assign({}, c, { lista: lista }));
+      lista = tmp.lista.map(function (p) { return Object.assign({}, p); });
+      destino = lista.length - 1;
+      lista[destino].valor = 0;
+    }
+    lista[destino].valor = r2(lista[destino].valor + resto);
+    lista[destino].acum = r2((lista[destino].acum || 0) + resto);
+    return recalcular(Object.assign({}, c, { lista: lista }));
+  }
+  // Estorno de pagamento parcial: devolve o resto que foi para a parcela seguinte. Retorna null se não for possível.
+  function estornarParcial(c, pIdx) {
+    var lista = c.lista.map(function (p) { return Object.assign({}, p); });
+    var p = lista[pIdx];
+    var resto = p.parcial.resto;
+    var destino = -1;
+    for (var i = pIdx + 1; i < lista.length; i++) {
+      if (!lista[i].pago && (lista[i].acum || 0) >= resto - 0.005) { destino = i; break; }
+    }
+    if (destino === -1) {
+      var temPaga = lista.slice(pIdx + 1).some(function (x) { return x.pago; });
+      if (temPaga) return null;
+    } else {
+      var d = lista[destino];
+      d.valor = r2(Math.max(0, d.valor - resto));
+      d.acum = r2(Math.max(0, (d.acum || 0) - resto));
+      if (d.acum === 0) delete d.acum;
+      if (d.valor < 0.01) lista.splice(destino, 1);
+    }
+    p.valor = p.parcial.original;
+    p.pago = false;
+    delete p.parcial;
+    return recalcular(Object.assign({}, c, { lista: lista }));
+  }
   function removerParcela(c, idx) {
     return recalcular(Object.assign({}, c, { lista: c.lista.filter(function (_, i) { return i !== idx; }) }));
   }
@@ -413,11 +464,73 @@
   }
 
   function setPago(cIdx, pIdx, pago) {
+    var cur = S.banco[cIdx] && S.banco[cIdx].lista[pIdx];
+    if (cur && !pago && cur.parcial) {
+      var res = estornarParcial(S.banco[cIdx], pIdx);
+      if (!res) {
+        S.ask = { title: "Não foi possível estornar", body: "O restante desta parcela já foi cobrado em uma parcela seguinte que está paga. Estorne primeiro a parcela seguinte.", noCancel: true, confirm: "Entendi", onYes: function () { S.ask = null; render(); } };
+        render();
+        return;
+      }
+      updateAt(cIdx, function () { return res; });
+      return;
+    }
     updateAt(cIdx, function (c) {
       return Object.assign({}, c, {
         lista: c.lista.map(function (p, i) { return i === pIdx ? Object.assign({}, p, { pago: pago }) : p; })
       });
     });
+  }
+
+  function pedirParcial(cIdx, pIdx) {
+    var c = S.banco[cIdx];
+    var p = c && c.lista[pIdx];
+    if (!p || p.pago) return;
+    S.ask = {
+      title: "Pagamento parcial",
+      body: "Parcela " + p.numero + " de " + c.nome + ": " + money(p.valor) + ". Informe quanto foi pago; o restante vai para a próxima parcela da fila.",
+      confirm: "Confirmar",
+      input: { label: "Valor recebido", placeholder: "Ex.: 100,00" },
+      primary: true,
+      validate: function (txt) {
+        var v = parseValor(txt);
+        if (isNaN(v) || v <= 0) return "Informe um valor válido, maior que zero.";
+        if (r2(v) >= r2(p.valor)) return "O valor cobre a parcela inteira. Use o botão Pagar.";
+        return null;
+      },
+      onYes: function (txt) {
+        var v = r2(parseValor(txt));
+        S.ask = null;
+        updateAt(cIdx, function (cl) { return pagarParcial(cl, pIdx, v); });
+      }
+    };
+    render();
+    window.setTimeout(function () { var i = $("ask-input"); if (i) i.focus(); }, 30);
+  }
+
+  function pedirRemoverUltima(cIdx) {
+    var c = S.banco[cIdx];
+    if (!c) return;
+    var info = function (body) {
+      S.ask = { title: "Remover última parcela", body: body, noCancel: true, confirm: "Entendi", onYes: function () { S.ask = null; render(); } };
+      render();
+    };
+    if (c.lista.length <= 1) return info("O contrato tem só uma parcela. Para eliminá-lo, use o botão de apagar contrato.");
+    var ult = c.lista[c.lista.length - 1];
+    if (ult.pago) return info("A última parcela já está paga. Estorne o pagamento antes de removê-la.");
+    var extra = ult.acum ? " Ela contém " + money(ult.acum) + " acumulado de uma parcela anterior; esse valor sairá do total do contrato." : "";
+    S.ask = {
+      title: "Remover última parcela",
+      body: "Remover a parcela " + ult.numero + " (" + formatDate(ult.data) + ", " + money(ult.valor) + ")?" + extra,
+      confirm: "Remover",
+      onYes: function () {
+        S.ask = null;
+        updateAt(cIdx, function (cl) {
+          return recalcular(Object.assign({}, cl, { lista: cl.lista.slice(0, -1) }));
+        });
+      }
+    };
+    render();
   }
 
   function acrescentar(cIdx) {
@@ -545,19 +658,23 @@
           String(p.numero).padStart(2, "0") + "</span>";
         h += '<div class="min-w-0 flex-1"><div class="flex items-baseline justify-between gap-3"><p class="text-sm text-ink">' +
           formatDate(p.data) + '</p><p class="font-serif text-lg tabular-nums text-ink">' + money(p.valor) + "</p></div>";
-        h += '<p class="' + cn("mt-1 text-xs font-medium uppercase tracking-wider", tone(status)) + '">' + STATUS_LABEL[status] + "</p>";
+        h += '<p class="' + cn("mt-1 text-xs font-medium uppercase tracking-wider", tone(status)) + '">' + STATUS_LABEL[status] + (p.parcial ? " parcial" : "") + "</p>";
+        if (p.parcial) h += '<p class="mt-1 text-xs text-muted">Pagou ' + money(p.valor) + " de " + money(p.parcial.original) + " · " + money(p.parcial.resto) + " passou para a próxima parcela</p>";
+        if (p.acum && !p.pago) h += '<p class="mt-1 text-xs text-muted">Inclui ' + money(p.acum) + " acumulado da parcela anterior</p>";
         h += '<div class="mt-3 flex flex-wrap gap-2">';
         if (p.pago) {
           h += btn({ variant: "alert", size: "sm", attrs: 'data-action="reverse" data-c="' + cIdx + '" data-p="' + pIdx + '"' }, "Estornar");
         } else {
           h += btn({ variant: "primary", size: "sm", attrs: 'data-action="pay" data-c="' + cIdx + '" data-p="' + pIdx + '"' }, "Pagar");
+          h += btn({ size: "sm", attrs: 'data-action="parcial" data-c="' + cIdx + '" data-p="' + pIdx + '"' }, "Pagou menos");
           h += btn({ size: "sm", attrs: 'data-action="remove" data-c="' + cIdx + '" data-p="' + pIdx + '"' }, "Feriado");
         }
         h += "</div></div></div></li>";
       });
       h += "</ul>";
-      h += '<div class="border-t border-line p-4 sm:p-5">' +
-        btn({ cls: "w-full", attrs: 'data-action="add" data-c="' + cIdx + '"' }, "Adicionar parcela ao final") + "</div></div>";
+      h += '<div class="border-t border-line p-4 sm:p-5"><div class="grid gap-2">' +
+        btn({ cls: "w-full", attrs: 'data-action="add" data-c="' + cIdx + '"' }, "Adicionar parcela ao final") +
+        btn({ variant: "alert", cls: "w-full", attrs: 'data-action="del-last" data-c="' + cIdx + '"' }, "Remover última parcela") + "</div></div></div>";
     }
     return h + "</article>";
   }
@@ -583,7 +700,8 @@
             '<p class="mt-1 text-sm text-muted">Parcela ' + p.numero + " · " + money(p.valor) + "</p>" +
             '<div class="mt-4 grid grid-cols-2 gap-2">' +
             btn({ variant: "primary", attrs: 'data-action="pay" data-c="' + cIdx + '" data-p="' + pIdx + '"' }, "Baixar") +
-            btn({ attrs: 'data-action="open" data-id="' + c.id + '"' }, "Ver ficha") + "</div></article>");
+            btn({ attrs: 'data-action="open" data-id="' + c.id + '"' }, "Ver ficha") + "</div>" +
+            btn({ cls: "mt-2 w-full", attrs: 'data-action="parcial" data-c="' + cIdx + '" data-p="' + pIdx + '"' }, "Pagou menos") + "</article>");
         });
         return;
       }
@@ -650,7 +768,7 @@
     c.lista.forEach(function (p) {
       var st = statusParcela(p, hs);
       h += '<tr><td class="num">' + p.numero + "/" + c.parcelas + '</td><td class="num">' + formatDate(p.data) +
-        '</td><td class="num">' + money(p.valor) + '</td><td class="st-' + st + '">' + STATUS_LABEL[st] + "</td></tr>";
+        '</td><td class="num">' + money(p.valor) + '</td><td class="st-' + st + '">' + STATUS_LABEL[st] + (p.parcial ? " parcial" : "") + "</td></tr>";
     });
     h += "</tbody></table>";
     return h + '<p class="lx-foot">Aureum · documento gerado automaticamente para conferência da carteira.</p></div>';
@@ -686,8 +804,12 @@
       '<div role="alertdialog" aria-modal="true" class="w-full max-w-sm rounded-3xl border border-line bg-paper p-6" data-stop="1">' +
       '<h3 class="font-serif text-2xl tracking-tight text-ink">' + esc(a.title) + "</h3>" +
       '<p class="mt-2 text-sm leading-relaxed text-muted">' + esc(a.body) + "</p>" +
-      '<div class="mt-6 grid grid-cols-2 gap-2">' + btn({ attrs: 'data-action="ask-cancel"' }, "Cancelar") +
-      btn({ variant: "danger", attrs: 'data-action="ask-yes"' }, esc(a.confirm)) + "</div></div></div>";
+      (a.input ? '<label class="mt-4 block"><span class="mb-1 block text-xs font-medium uppercase tracking-wider text-muted">' + esc(a.input.label) +
+        '</span><input id="ask-input" class="h-12 w-full rounded-xl border border-line bg-canvas px-3 text-base text-ink outline-none focus:border-forest" inputmode="decimal" autocomplete="off" placeholder="' + esc(a.input.placeholder || "") + '"></label>' +
+        '<p id="ask-error" role="alert" class="mt-2 text-sm text-burgundy" style="display:none"></p>' : "") +
+      '<div class="mt-6 grid ' + (a.noCancel ? "grid-cols-1" : "grid-cols-2") + ' gap-2">' +
+      (a.noCancel ? "" : btn({ attrs: 'data-action="ask-cancel"' }, "Cancelar")) +
+      btn({ variant: a.primary || a.noCancel ? "primary" : "danger", attrs: 'data-action="ask-yes"' }, esc(a.confirm)) + "</div></div></div>";
   }
 
   function syncScrollLock() {
@@ -752,14 +874,28 @@
       case "capturar": capturar(); break;
       case "ask-cancel":
       case "ask-backdrop": S.ask = null; render(); break;
-      case "ask-yes": if (S.ask) S.ask.onYes(); break;
+      case "ask-yes": askYes(); break;
+      case "parcial": pedirParcial(c, p); break;
+      case "del-last": pedirRemoverUltima(c); break;
       case "novo": toggleForm(); break;
       case "extrato-resumo": abrirExtrato("resumo"); break;
       case "extrato-completo": abrirExtrato("completo"); break;
     }
   });
 
+  function askYes() {
+    var a = S.ask;
+    if (!a) return;
+    if (a.input) {
+      var txt = $("ask-input").value;
+      var err = a.validate ? a.validate(txt) : null;
+      if (err) { var e = $("ask-error"); e.textContent = err; e.style.display = "block"; return; }
+      a.onYes(txt);
+    } else a.onYes();
+  }
+
   window.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && S.ask && S.ask.input && event.target && event.target.id === "ask-input") { event.preventDefault(); askYes(); return; }
     if (event.key !== "Escape") return;
     if (S.ask) { S.ask = null; render(); }
     else if (S.modal) { S.modal = null; render(); }
